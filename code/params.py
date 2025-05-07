@@ -2,7 +2,7 @@ import argparse
 import sys
 
 argv = sys.argv
-dataset = 'ogbn-products'#argv[1]
+dataset = argv[1]
 
 def cora_params():###################
     parser = argparse.ArgumentParser()
