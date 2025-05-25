@@ -57,24 +57,17 @@ def class_rand_splits(label, label_num_per_class, valid_num=500, test_num=1000):
     return train_idx, valid_idx, test_idx
 
 
-
 def load_fixed_splits(data, data_dir, name):
     splits = {}
-    if name in ["film", "texas", "wisconsin", 'chameleon']:
+    splits_lst = []
+    if name in ["film", "cornell", "texas", "wisconsin", 'chameleon', 'squirrel', 'roman-empire']:
         for i in range(data.train_mask.shape[1]):
+            splits = {}
             splits['train'] = torch.where(data.train_mask[:, i])[0]
             splits['valid'] = torch.where(data.val_mask[:, i])[0]
             splits['test'] = torch.where(data.test_mask[:, i])[0]
-    elif name in ['wikics']:
-        for i in range(data.train_mask.shape[1]):
-            splits['train'] = torch.where(data.train_mask[:, i])[0]
-            splits['valid'] = torch.where(torch.logical_or(data.val_mask, data.stopping_mask)[:, i])[0]
-            splits['test'] = torch.where(data.test_mask[:])[0]
-    elif name in ['amazon-computer', 'amazon-photo', 'coauthor-cs', 'coauthor-physics']:
-        idx = np.load(f'{data_dir}/{name}_split.npz')
-        splits['train'] = torch.from_numpy(idx['train'])
-        splits['valid'] = torch.from_numpy(idx['valid'])
-        splits['test'] = torch.from_numpy(idx['test'])
+            splits_lst.append(splits)
+
     elif name in ['ogbn-arxiv', 'ogbn-products']:
         split_idx = data.get_idx_split()
         splits['train'] = torch.as_tensor(split_idx['train'])
@@ -82,7 +75,7 @@ def load_fixed_splits(data, data_dir, name):
         splits['test'] = torch.as_tensor(split_idx['test'])
     else:
         raise NotImplementedError
-    return splits['train'], splits['valid'], splits['test']
+    return splits['train'], splits['valid'], splits['test'], splits_lst
 
 
 def eval_f1(y_true, y_pred):
