@@ -9,9 +9,8 @@ from torch_geometric.datasets import Planetoid
 from .data_utils import class_rand_splits, load_fixed_splits, rand_train_test_idx, sym_adj, partition, adj_par, \
     partition_adj, partition_arxiv
 
-
 class Dataset(object):
-    def __init__(self, name, graph, x, y, idx_train, idx_valid, idx_test, partptr, perm, cluster):
+    def __init__(self, name, graph, x, y, idx_train, idx_valid, idx_test, splits_lst, partptr, perm, cluster):
         self.name = name  # original name, e.g., cora
         self.graph = graph
         self.x = x
@@ -22,6 +21,7 @@ class Dataset(object):
         self.idx_train = idx_train
         self.idx_valid = idx_valid
         self.idx_test = idx_test
+        self.splits_lst = splits_lst
         self.partptr = partptr
         self.perm = perm
         self.cluster = cluster
@@ -95,6 +95,8 @@ def load_data(args):
         dataset = load_amazon_dataset(data_dir, data_name)
     elif data_name in  ('coauthor-cs', 'coauthor-physics'):
         dataset = load_coauthor_dataset(data_dir, data_name)
+    elif data_name in ('roman-empire', 'amazon-ratings', 'minesweeper', 'tolokers', 'questions'):
+        dataset = load_hetero_dataset(data_dir, data_name)
     elif data_name == 'wikics':
         dataset = WikiCS(root=f'{data_dir}/wikics/')
     elif data_name in ('cora', 'citeseer', 'pubmed'):
@@ -108,10 +110,13 @@ def load_data(args):
     else:
         raise ValueError('Invalid dataname')
     data = dataset[0]
-    adj = sym_adj(data.edge_index, data.num_nodes)
+
+    # print(our_measure(data.edge_index, data.y))
+    # exit(0)
+
     adj = sym_adj(data.edge_index, data.num_nodes)
     #data.x = torch.nn.functional.normalize(data.x)
-    if data_name in ["texas", "wisconsin", 'chameleon', 'film']:
+    if data_name in ["texas", "wisconsin", 'chameleon', 'film', 'roman-empire']:
         adj_partition = adj_par(data.edge_index, data.num_nodes)
         partptr, perm, cluster = partition_adj(adj_partition, round(args.cluster * data.x.size(0)))
     else:
@@ -119,19 +124,20 @@ def load_data(args):
 
 
     #data.x = torch.nn.functional.normalize(data.x)
+    splits_lst = []
     if args.rand_split_class:
         idx_train, idx_valid, idx_test = \
             class_rand_splits(data.y, args.label_num_per_class, args.valid_num, args.test_num)
     elif args.rand_split:
         idx_train, idx_valid, idx_test = rand_train_test_idx(data.y, args.train_ratio, args.valid_ratio)
     else:
-        idx_train, idx_valid, idx_test = load_fixed_splits(data, data_dir, name=data_name)
+        idx_train, idx_valid, idx_test, splits_lst = load_fixed_splits(data, data_dir, name=data_name)
 
     # idx_train = torch.where(data.train_mask)[0]
     # idx_valid = torch.where(data.val_mask)[0]
     # idx_test = torch.where(data.test_mask)[0]
 
-    return Dataset(data_name, adj, data.x, data.y, idx_train, idx_valid, idx_test, partptr, perm, cluster)
+    return Dataset(data_name, adj, data.x, data.y, idx_train, idx_valid, idx_test, splits_lst, partptr, perm, cluster)
 
 
 def load_ogbn_data(args):
@@ -183,7 +189,7 @@ def load_ogbn_data(args):
     elif args.rand_split:
         idx_train, idx_valid, idx_test = rand_train_test_idx(data.y, args.train_ratio, args.valid_ratio)
     else:
-        idx_train, idx_valid, idx_test = load_fixed_splits(dataset, data_dir, name=data_name)
+        idx_train, idx_valid, idx_test, _ = load_fixed_splits(dataset, data_dir, name=data_name)
 
     return Ogbn_Dataset(data_name, adj, x, y, idx_train, idx_valid, idx_test, par)
 
