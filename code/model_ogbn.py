@@ -78,14 +78,12 @@ class IGCL(torch.nn.Module):
         q = F.normalize(self.projector(h))
         v = F.normalize(v)
         par_indices = P.coalesce().indices()[1]
-        neg_indices = torch.randint(0, h.size(0), (v.size(0),))
         pos_sim = (torch.sum(v*q[par_indices], dim=1) / self.tau).unsqueeze(1)
-        neg_sim = (torch.sum(v*q[neg_indices], dim=1) / self.tau).unsqueeze(1)
-        return torch.exp(torch.spmm(P.T, pos_sim)), torch.exp(torch.spmm(P.T, neg_sim))
+        return torch.spmm(P.T, pos_sim)
 
     def neg_score(self, h):
         h = F.normalize(h)
-        neg_sim = torch.exp(torch.mm(h, h.t()) / self.tau)
+        neg_sim = torch.mm(h, h.t()) / self.tau
         return neg_sim
 
     def pos_partition(self, sim, coarse_g):
@@ -108,12 +106,11 @@ class IGCL(torch.nn.Module):
         h = self.encoder(h)
         #h = torch.spmm(P.T, h)
         x = self.encoder_target(x)
-        pos_score, neg_par = self.pos_score(h, x, P)
+        pos_score = self.pos_score(h, x, P)
         neg_score = self.neg_score(h)
 
         partition_score = torch.sparse.mm(coarse_g, neg_score)#self.pos_partition(neg_score, coarse_g)
-        #loss = (-torch.log(pos_score + self.lamda*partition_score) + (torch.log(pos_score + neg_par + neg_score.sum(1)))).mean()
-        loss = (-torch.log(pos_score + self.lamda*partition_score) + (torch.log(pos_score + neg_score.sum(1)))).mean()
+        loss = (-torch.log(torch.exp(pos_score + self.lamda*partition_score)) + (torch.log(torch.exp(pos_score) + torch.exp(neg_score).sum(1)))).mean()
         return loss
 
     def get_emb(self, x, g, k):
