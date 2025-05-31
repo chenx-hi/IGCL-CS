@@ -123,7 +123,7 @@ class IGCL(torch.nn.Module):
         h = self.encoder(x)
         h = torch.spmm(P.T, h)
         x = self.encoder_target(x)
-        pos_score, neg_par = self.pos_score(h, x, P)
+        pos_score = self.pos_score(h, x, P)
         neg_score = self.neg_score(h)
         partition_score = torch.sparse.mm(coarse_g, neg_score)
         loss = (-torch.log(torch.exp(pos_score + self.lamda*partition_score)) + (torch.log(torch.exp(pos_score) + torch.exp(neg_score).sum(1)))).mean()
